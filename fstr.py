@@ -19,11 +19,9 @@ def formatstr(formatDict):
         result.append(str(formatDict['type']))
     return ''.join(result)
 def uni2int(val,formatDict,*args):
-    if type(val)!=str:
+    if type(val) not in [str,unicode]:
         return ('{0:'+formatstr(formatDict)+'}').format(val)
-    import struct
-    padded = ( '\x00\x00\x00' + val ) [ -4: ]
-    return int ( struct.unpack( '>I', padded ) [ 0 ] ) 
+    return ord(val.strip())
 def perc2float(val,formatDict,*args):
     if type(val)!=str:
         return ('{0:'+formatstr(formatDict)+'}').format(val)
@@ -77,13 +75,12 @@ class FormatString(object):
     Can parse free format stings (space delimited) which is signified by the __freeformatdelimiter__ value (default is |)
     Other methods are helper methods for the format parsing etc. 
     """
-    _typeDict={'b':(int,[2]),
+    _typeDict={'b':(intparse,[2]),
                 'c':(uni2int,[]),
                 'd':(intparse,[10]),
                 'o':(intparse,[8]),
                 'x':(intparse,[16]),
                 'X':(intparse,[16]),
-                'n':(intparse,[10]),
                 'e':(floatparse,[]),
                 'E':(floatparse,[]),
                 'f':(floatparse,[]),
@@ -95,6 +92,7 @@ class FormatString(object):
                 's':(strparse,[]),
                 None:(float,[])}
     __freeformatdelimiter__='|'
+    __fixed__=False
     def __init__(self,formatstring):
         self.__setformatstring__(formatstring)
     def __setformatstring__(self,formatString):
@@ -234,8 +232,8 @@ class FormatString(object):
                     __stringpointer__+=1
                 else:   
                     #literal_string - skip
-                    parseString=inputString[__stringpointer__:]
                     __stringpointer__+=len(result)
+                    parseString=inputString[__stringpointer__:]
             else:
                 if self.__freeformatdelimiter__ in parseresults:
                     parseString=inputString.split()[__stringpointer__]
@@ -249,6 +247,23 @@ class FormatString(object):
             Results[attr]=val
         return Results
     def __stringparse__(self,string,attribute,formatDict,conversion):
+        #Handle exponential precision errors - N.B. cannot parse fixed format with more than 2 digits in exponent (e.g. e+123 will fail)
+        if formatDict['type'].lower() in ['e']:
+            formatDict['width']=len(string.split('e')[0].split('E')[0])+4
+        #Handle default format precision
+        if formatDict['type'].lower()in ['f']:
+            if not formatDict['precision'] and not self.__fixed__:
+                #PEP 3101 default precision is 6 for 'f','g','e' handling read assuming default precision
+                formatDict['precision']=6
+                formatDict['width']+=6
+                if '.' in string and formatDict['precision']:
+                    try:
+                        length=string.index('.')+formatDict['precision']+1
+                        a=float(string[:length])
+                        #Reset length
+                        formatDict['width']=length
+                    except:
+                        pass
         if formatDict['width']:
             string=string[:int(formatDict['width'])]
         if formatDict['align'] and not formatDict['fill']:
@@ -297,27 +312,75 @@ class __FormatStringTestCase(unittest.TestCase):
         self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': '^', 'alternate': True, 'comma': True, 'fill': 'z', 'precision': '566', 'sign': ' ', 'type': 'f', 'width': 20,'zeropadding': True},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
         testFormat=''
         self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 's', 'width': False,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6i'
+        self.assertRaises(ValueError,self.formatString.__specparse__,(testFormat))
+        testFormat='6c'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'c', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6b'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'b', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6x'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'x', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6d'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'd', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6o'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'o', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6X'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'X', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6e'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'e', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6E'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'E', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6f'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'f', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6F'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'F', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6g'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'g', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6G'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'G', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6n'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'n', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6%'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': '%', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6s'
+        self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 's', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
+        testFormat='6q'
+        self.assertRaises(ValueError,self.formatString.__specparse__,(testFormat))
     def test___setformatstring__(self):
-        self.formatString.__setformatstring__('{location/Longitude:10.5f} {location/Latitude:10.5f}{location/Depth:9.3f}                      {location/ErH:6f}')
-        self.assertEqual(self.formatString.__formatstring__,'{location/Longitude:10.5f} {location/Latitude:10.5f}{location/Depth:9.3f}                      {location/ErH:6f}')
+        self.formatString.__setformatstring__('{a.b:10.5f} {a.c:10.5f}{b.a:9.3f}                      {b.b:6f}')
+        self.assertEqual(self.formatString.__formatstring__,'{a.b:10.5f} {a.c:10.5f}{b.a:9.3f}                      {b.b:6f}')
     def test___parse__(self):
         self.test___setformatstring__()
-        self.assertEqual(self.formatString.__parse__(),[('location/Longitude', {'output':False,'zeropadding': False, 'align': False, 'alternate': False, 'precision': '5', 'sign': False, 'width': 10, 'comma': False, 'type': 'f', 'fill': False}, None), ' ', 
-                                                        ('location/Latitude', {'output':False,'zeropadding': False, 'align': False, 'alternate': False, 'precision': '5', 'sign': False, 'width': 10, 'comma': False, 'type': 'f', 'fill': False}, None), 
-                                                        ('location/Depth', {'output':False,'zeropadding': False, 'align': False, 'alternate': False, 'precision': '3', 'sign': False, 'width': 9, 'comma': False, 'type': 'f', 'fill': False}, None), '                      ', 
-                                                        ('location/ErH', {'output':False,'zeropadding': False, 'align': False, 'alternate': False, 'precision': False, 'sign': False, 'width': 6, 'comma': False, 'type': 'f', 'fill':False}, None)],
+        self.assertEqual(self.formatString.__parse__(),[('a.b', {'output':False,'zeropadding': False, 'align': False, 'alternate': False, 'precision': '5', 'sign': False, 'width': 10, 'comma': False, 'type': 'f', 'fill': False}, None), ' ', 
+                                                        ('a.c', {'output':False,'zeropadding': False, 'align': False, 'alternate': False, 'precision': '5', 'sign': False, 'width': 10, 'comma': False, 'type': 'f', 'fill': False}, None), 
+                                                        ('b.a', {'output':False,'zeropadding': False, 'align': False, 'alternate': False, 'precision': '3', 'sign': False, 'width': 9, 'comma': False, 'type': 'f', 'fill': False}, None), '                      ', 
+                                                        ('b.b', {'output':False,'zeropadding': False, 'align': False, 'alternate': False, 'precision': False, 'sign': False, 'width': 6, 'comma': False, 'type': 'f', 'fill':False}, None)],
                          '__parse__ Error: '+str(self.formatString.__parse__()))
     def test___stringparse__(self):
-        testCase=self.formatString.__stringparse__('abc ','picks/Station',self.formatString.__specparse__('<4s'),None)
-        self.assertEqual(testCase,('picks/Station','abc'),'__stringparse__ Error: '+str(testCase))
-        testCase=self.formatString.__stringparse__('abcd','picks/Station',self.formatString.__specparse__('s'),None)
-        self.assertEqual(testCase,('picks/Station','abcd'),'__stringparse__ Error: '+str(testCase))
+        testCase=self.formatString.__stringparse__('abc ','a.x',self.formatString.__specparse__('<4s'),None)
+        self.assertEqual(testCase,('a.x','abc'),'__stringparse__ Error: '+str(testCase))
+        testCase=self.formatString.__stringparse__('abcd','a',self.formatString.__specparse__('s'),None)
+        self.assertEqual(testCase,('a','abcd'),'__stringparse__ Error: '+str(testCase))
     def test_format(self):
-        self.formatString.__setformatstring__('{0:10.5f} {1:10.5f}{2:9.3f}                      {3:6f}')        
-        self.assertEqual(self.formatString.format(121.355,84.23,11.2,11),' 121.35500   84.23000   11.200                      11.000000','format Error: '+str(self.formatString.format(121.355,84.23,11.2,11)))
+        self.formatString.__setformatstring__('{0:10.5f} {1:10.5f}{2:9.3f}                      {3:6f}{a.x:6s}') 
+        class A(object):
+            x='abcdef'
+        a=A()       
+        self.assertEqual(self.formatString.format(121.355,84.23,11.2,11,a=a),' 121.35500   84.23000   11.200                      11.000000abcdef','format Error: '+str(self.formatString.format(121.355,84.23,11.2,11,a=a)))
     def test_read(self):
-        self.formatString.__setformatstring__('{0:10.5f} {1:10.5f}{2:9.3f}                      {3:6f}')        
-        self.assertEqual(self.formatString.read(' 121.35500   84.23000   11.200                      11.000000'),{'0':121.355,'1':84.23,'2':11.2,'3':11},'format Error: '+str(self.formatString.read(' 121.35500   84.23000   11.200                      11.000000')))
+        self.formatString.__setformatstring__('{0:10.5f} {1:10.5f}{2:9.3f}                      {3:6f} {a.b:6b}')        
+        self.assertEqual(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101'),{'0':121.355,'1':84.23,'2':11.2,'3':11.001,'a.b':5},'format Error: '+str(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101')))
+        self.formatString.__setformatstring__('{0:5c} {1:4d} {2:7o} {3:5x} {4:6X}')        
+        self.assertEqual(self.formatString.read('    y 8423  301255   3dd    3DD'),{'0':121,'1':8423,'2':98989,'3':989,'4':989},'format Error: '+str(self.formatString.read('    y 8423  301255   3dd    3DD')))
+        self.formatString.__setformatstring__('{0:5e} {1:4E} {2:7f} {3:5F}')# {4:6g} {5:6.2G}')        
+        self.assertEqual(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000'),{'0':12.34,'1':12.56,'2':123.456,'3':12.345},'format Error: '+str(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000')))
+        #  12345 1.2E+02'),{'0':12.34,'1':12.56,'2':123.456,'3':12.345,'4':12345,'5':1200},'format Error: '+str(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000  12345 1.2E+02')))
+        
+
+
+
+
+
 def __debugTestSuite():
     suite=unittest.TestSuite()
     formatStringSuite = unittest.TestLoader().loadTestsFromTestCase(__FormatStringTestCase)
