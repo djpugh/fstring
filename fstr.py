@@ -250,6 +250,13 @@ class FormatString(object):
         #Handle exponential precision errors - N.B. cannot parse fixed format with more than 2 digits in exponent (e.g. e+123 will fail)
         if formatDict['type'].lower() in ['e']:
             formatDict['width']=len(string.split('e')[0].split('E')[0])+4
+        if formatDict['type'].lower() in ['g']:
+            if formatDict['precision']:
+                x=3+int(formatDict['precision'])
+            else:
+                x=9
+            if 'e' in string[:x].lower():
+                formatDict['width']=len(string.split('e')[0].split('E')[0])+4
         #Handle default format precision
         if formatDict['type'].lower()in ['f']:
             if not formatDict['precision'] and not self.__fixed__:
@@ -372,15 +379,10 @@ class __FormatStringTestCase(unittest.TestCase):
         self.assertEqual(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101'),{'0':121.355,'1':84.23,'2':11.2,'3':11.001,'a.b':5},'format Error: '+str(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101')))
         self.formatString.__setformatstring__('{0:5c} {1:4d} {2:7o} {3:5x} {4:6X}')        
         self.assertEqual(self.formatString.read('    y 8423  301255   3dd    3DD'),{'0':121,'1':8423,'2':98989,'3':989,'4':989},'format Error: '+str(self.formatString.read('    y 8423  301255   3dd    3DD')))
-        self.formatString.__setformatstring__('{0:5e} {1:4E} {2:7f} {3:5F}')# {4:6g} {5:6.2G}')        
+        self.formatString.__setformatstring__('{0:5e} {1:4E} {2:7f} {3:5F}')      
         self.assertEqual(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000'),{'0':12.34,'1':12.56,'2':123.456,'3':12.345},'format Error: '+str(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000')))
-        #  12345 1.2E+02'),{'0':12.34,'1':12.56,'2':123.456,'3':12.345,'4':12345,'5':1200},'format Error: '+str(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000  12345 1.2E+02')))
-        
-
-
-
-
-
+        self.formatString.__setformatstring__('{0:6g} {1:6.2G}')  
+        self.assertEqual(self.formatString.read(' 12345 1.2E+02'),{'0':12345,'1':120},'format Error: '+str(self.formatString.read(' 12345 1.2E+02')))
 def __debugTestSuite():
     suite=unittest.TestSuite()
     formatStringSuite = unittest.TestLoader().loadTestsFromTestCase(__FormatStringTestCase)
