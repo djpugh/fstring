@@ -1,0 +1,13 @@
+Simple python module for reading in strings based on the PEP 3101 string.format() method
+
+install with python setup.py install
+
+and then simply use:
+
+import fstring
+
+fstring.FormatString("{0:3i} a format string")
+
+fstring.format(...) behaves like string.format(...)
+
+fstring.read(inputString) parses the input string according to the format string and returns a dictionary of the results
