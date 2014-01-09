@@ -11,3 +11,7 @@ fstring.FormatString("{0:3i} a format string")
 fstring.format(...) behaves like string.format(...)
 
 fstring.read(inputString) parses the input string according to the format string and returns a dictionary of the results
+
+To run tests:
+>>import fstring
+>>fstring._runTests()
