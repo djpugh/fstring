@@ -93,7 +93,8 @@ class FormatString(object):
                 None:(float,[])}
     __freeformatdelimiter__='|'
     __fixed__=False
-    def __init__(self,formatstring):
+    def __init__(self,formatstring,fixed=False):
+        self.__fixed__=fixed
         self.__setformatstring__(formatstring)
     def __setformatstring__(self,formatString):
         self.__setattr__('__formatstring__',formatString)
@@ -181,13 +182,17 @@ class FormatString(object):
         return ''.join(result)
     def __formatfield__(self,attr,format_spec):
         try:
-            return format(attr,format_spec)
+            out=format(attr,format_spec)
+            formatDict=self.__specparse__(format_spec)
+            if self.__fixed__ and formatDict['width']:
+                out= out[:formatDict['width']]
+            return out
         except:
             formatDict=self.__specparse__(format_spec)
             formatType=formatDict['type']
             formatDict['output']=True
             out=self._typeDict[formatType][0](attr,formatDict,*self._typeDict[formatType][1])
-            if formatDict['width']:
+            if self.__fixed__ and formatDict['width']:
                 out= out[:formatDict['width']]
             return out
     def __convertfield__(self, value, conversion):
@@ -383,6 +388,14 @@ class __FormatStringTestCase(unittest.TestCase):
         self.assertEqual(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000'),{'0':12.34,'1':12.56,'2':123.456,'3':12.345},'format Error: '+str(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000')))
         self.formatString.__setformatstring__('{0:6g} {1:6.2G}')  
         self.assertEqual(self.formatString.read(' 12345 1.2E+02'),{'0':12345,'1':120},'format Error: '+str(self.formatString.read(' 12345 1.2E+02')))
+    def test___fixed__(self):
+        self.formatString.__fixed__=True
+        self.formatString.__setformatstring__('{0:4.5f} {1:10.5f}{2:9.3f}                      {3:6f}{a.x:6s}') 
+        class A(object):
+            x='abcdef'
+        a=A()       
+        self.assertEqual(self.formatString.format(121.355,84.23,11.2,11,a=a),'121.   84.23000   11.200                      11.000abcdef','format Error: '+str(self.formatString.format(121.355,84.23,11.2,11,a=a)))
+
 def __debugTestSuite():
     suite=unittest.TestSuite()
     formatStringSuite = unittest.TestLoader().loadTestsFromTestCase(__FormatStringTestCase)
