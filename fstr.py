@@ -141,8 +141,7 @@ class FormatString(object):
             formatDict['width']=int(formatSpec.split('.')[0])
             formatDict['precision']='.'.join(formatSpec.split('.')[1:])
         elif len(formatSpec)>0:
-            formatDict['width']=int(formatSpec.split('.')[0])
-            
+            formatDict['width']=int(formatSpec.split('.')[0])            
         formatDict['output']=False
         return formatDict
     def __parse__(self):
@@ -186,6 +185,8 @@ class FormatString(object):
             formatDict=self.__specparse__(format_spec)
             if self.__fixed__ and formatDict['width']:
                 out= out[:formatDict['width']]
+                if len(out)<formatDict['width']:
+                    out=' '*(formatDict['width']-len(out))+out
             return out
         except:
             formatDict=self.__specparse__(format_spec)
@@ -194,6 +195,8 @@ class FormatString(object):
             out=self._typeDict[formatType][0](attr,formatDict,*self._typeDict[formatType][1])
             if self.__fixed__ and formatDict['width']:
                 out= out[:formatDict['width']]
+                if len(out)<formatDict['width']:
+                    out=' '*(formatDict['width']-len(out))+out
             return out
     def __convertfield__(self, value, conversion):
         # do any conversion on the resulting object
@@ -249,8 +252,36 @@ class FormatString(object):
                     __stringpointer__+=1
                 elif result[1]['width']:
                     __stringpointer__+=int(result[1]['width'])
+            #import ipdb;ipdb.set_trace()
             Results[attr]=val
+        for key in Results.keys():
+            value=Results.pop(key)
+            Results=self.recursiveDictUpdate(Results,self.__attrsplit__(key,value))
         return Results
+    def __attrsplit__(self,key,value):
+        keys=key.split('.')
+        keys.reverse()
+        for attr in keys:
+            data={}
+            data[attr]=value
+            value=data.copy()
+        return data
+    def recursiveDictUpdate(self,d, u):
+        """
+        Recursively merge or update dict-like objects. 
+        >>> recursiveDictUpdate({'k1': {'k2': 2}}, {'k1': {'k2': {'k3': 3}}, 'k4': 4})
+        {'k1': {'k2': {'k3': 3}}, 'k4': 4}
+        """
+        from collections import Mapping
+        for k, v in u.iteritems():
+            if isinstance(v, Mapping):
+                r = self.recursiveDictUpdate(d.get(k, {}), v)
+                d[k] = r
+            elif isinstance(d, Mapping):
+                d[k] = u[k]
+            else:
+                d = {k: u[k]}
+        return d
     def __stringparse__(self,string,attribute,formatDict,conversion):
         #Handle exponential precision errors - N.B. cannot parse fixed format with more than 2 digits in exponent (e.g. e+123 will fail)
         if formatDict['type'].lower() in ['e']:
@@ -381,13 +412,15 @@ class __FormatStringTestCase(unittest.TestCase):
         self.assertEqual(self.formatString.format(121.355,84.23,11.2,11,a=a),' 121.35500   84.23000   11.200                      11.000000abcdef','format Error: '+str(self.formatString.format(121.355,84.23,11.2,11,a=a)))
     def test_read(self):
         self.formatString.__setformatstring__('{0:10.5f} {1:10.5f}{2:9.3f}                      {3:6f} {a.b:6b}')        
-        self.assertEqual(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101'),{'0':121.355,'1':84.23,'2':11.2,'3':11.001,'a.b':5},'format Error: '+str(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101')))
+        self.assertEqual(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101'),{'0':121.355,'1':84.23,'2':11.2,'3':11.001,'a':{'b':5}},'format Error: '+str(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101')))
         self.formatString.__setformatstring__('{0:5c} {1:4d} {2:7o} {3:5x} {4:6X}')        
         self.assertEqual(self.formatString.read('    y 8423  301255   3dd    3DD'),{'0':121,'1':8423,'2':98989,'3':989,'4':989},'format Error: '+str(self.formatString.read('    y 8423  301255   3dd    3DD')))
         self.formatString.__setformatstring__('{0:5e} {1:4E} {2:7f} {3:5F}')      
         self.assertEqual(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000'),{'0':12.34,'1':12.56,'2':123.456,'3':12.345},'format Error: '+str(self.formatString.read('1.234000e+01 1.256000E+01 123.456000 12.345000')))
         self.formatString.__setformatstring__('{0:6g} {1:6.2G}')  
-        self.assertEqual(self.formatString.read(' 12345 1.2E+02'),{'0':12345,'1':120},'format Error: '+str(self.formatString.read(' 12345 1.2E+02')))
+        self.assertEqual(self.formatString.read(' 12345 1.2E+02'),{'0':12345,'1':120},'format Error: '+str(self.formatString.read(' 12345 1.2E+02'))) 
+        self.formatString.__setformatstring__('{picks.pt:6.0f} {picks.st:6.2f}')  
+        self.assertEqual(self.formatString.read(' 12345 123.23'),{'picks':{'pt':12345.0,'st':123.23}},'format Error: '+str(self.formatString.read(' 12345 123.23')))
     def test___fixed__(self):
         self.formatString.__fixed__=True
         self.formatString.__setformatstring__('{0:4.5f} {1:10.5f}{2:9.3f}                      {3:6f}{a.x:6s}') 
