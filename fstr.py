@@ -153,6 +153,8 @@ class FormatString(object):
             if field_name is not None:
                 Results.append((field_name,self.__specparse__(format_spec),conversion))
         return Results
+    def __repr__(self):
+        return self.__formatstring__
     def format(self,*args,**kwargs):
         """format(*args,**kwargs):
     Behaves like the standard python str.format (PEP 3101) method for parsing a format spec type string (see python docs for format spec construction) 
@@ -249,12 +251,15 @@ class FormatString(object):
                     parseString=inputString.split()[__stringpointer__]
                 else:
                     parseString=inputString[__stringpointer__:]
-                (attr,val)=self.__stringparse__(parseString,*result)
+                try:
+                    (attr,val)=self.__stringparse__(parseString,*result)
+                    Results[attr]=val
+                except:
+                    pass
                 if self.__freeformatdelimiter__ in parseresults:
                     __stringpointer__+=1
                 elif result[1]['width']:
                     __stringpointer__+=int(result[1]['width'])
-                Results[attr]=val
         for key in Results.keys():
             value=Results.pop(key)
             Results=self.recursiveDictUpdate(Results,self.__attrsplit__(key,value))
