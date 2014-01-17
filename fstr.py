@@ -240,9 +240,9 @@ class FormatString(object):
                 if result==self.__freeformatdelimiter__:
                     #freeformat so split and join string....
                     pass
-                elif self.__freeformatdelimiter__ in inputString:
+                elif self.__freeformatdelimiter__ in result:
                     __stringpointer__+=1
-                else:   
+                elif self.__freeformatdelimiter__ not in parseresults:   
                     #literal_string - skip
                     __stringpointer__+=len(result)
                     parseString=inputString[__stringpointer__:]
@@ -427,6 +427,9 @@ class __FormatStringTestCase(unittest.TestCase):
         self.assertEqual(self.formatString.read(' 12345 1.2E+02'),{'0':12345,'1':120},'format Error: '+str(self.formatString.read(' 12345 1.2E+02'))) 
         self.formatString.__setformatstring__('{picks.pt:6.0f} {picks.st:6.2f}')  
         self.assertEqual(self.formatString.read(' 12345 123.23'),{'picks':{'pt':12345.0,'st':123.23}},'format Error: '+str(self.formatString.read(' 12345 123.23')))
+        self.formatString.__setformatstring__('XYZ|{0:f}|{1:f}|{2:f}|ABC|{3:f}|{a.x:s}')    
+        self.assertEqual(self.formatString.read('XYZ 121.355000 84.230000 11.200000 ABC 11.000000 abcdef'),{'0':121.355,'1':84.23,'2':11.2,'3':11.0,'a':{'x':'abcdef'}},'format Error: '+str(self.formatString.read('XYZ 121.355000 84.230000 11.200000 ABC 11.000000 abcdef')))
+    
     def test___fixed__(self):
         self.formatString.__fixed__=True
         self.formatString.__setformatstring__('{0:4.5f} {1:10.5f}{2:9.3f}                      {3:6f}{a.x:6s}') 
