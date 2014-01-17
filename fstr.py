@@ -141,7 +141,7 @@ class FormatString(object):
             formatDict['width']=int(formatSpec.split('.')[0])
             formatDict['precision']='.'.join(formatSpec.split('.')[1:])
         elif len(formatSpec)>0:
-            formatDict['width']=int(formatSpec.split('.')[0])            
+            formatDict['width']=int(''.join([v for v in formatSpec if v.isdigit()]))            
         formatDict['output']=False
         return formatDict
     def __parse__(self):
@@ -150,7 +150,8 @@ class FormatString(object):
             self.__formatstring__._formatter_parser():
             if literal_text:
                 Results.append(literal_text)
-            Results.append((field_name,self.__specparse__(format_spec),conversion))
+            if field_name is not None:
+                Results.append((field_name,self.__specparse__(format_spec),conversion))
         return Results
     def format(self,*args,**kwargs):
         """format(*args,**kwargs):
@@ -166,9 +167,8 @@ class FormatString(object):
             formatstring._formatter_parser():
             # output the literal text
             if literal_text:
-                if literal_text==self.__freeformatdelimiter__:
-                    #using | as a free format space delimiter
-                    result.append(' ')
+                if self.__freeformatdelimiter__ in literal_text:
+                    result.append(literal_text.replace('|',' '))
                 else:
                     result.append(literal_text)
             # if there's a field, output it
@@ -237,6 +237,8 @@ class FormatString(object):
             if type(result)==str:
                 if result==self.__freeformatdelimiter__:
                     #freeformat so split and join string....
+                    pass
+                elif self.__freeformatdelimiter__ in inputString:
                     __stringpointer__+=1
                 else:   
                     #literal_string - skip
@@ -252,8 +254,7 @@ class FormatString(object):
                     __stringpointer__+=1
                 elif result[1]['width']:
                     __stringpointer__+=int(result[1]['width'])
-            #import ipdb;ipdb.set_trace()
-            Results[attr]=val
+                Results[attr]=val
         for key in Results.keys():
             value=Results.pop(key)
             Results=self.recursiveDictUpdate(Results,self.__attrsplit__(key,value))
@@ -355,8 +356,6 @@ class __FormatStringTestCase(unittest.TestCase):
         self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': '^', 'alternate': True, 'comma': True, 'fill': 'z', 'precision': '566', 'sign': ' ', 'type': 'f', 'width': 20,'zeropadding': True},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
         testFormat=''
         self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 's', 'width': False,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
-        testFormat='6i'
-        self.assertRaises(ValueError,self.formatString.__specparse__,(testFormat))
         testFormat='6c'
         self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 'c', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
         testFormat='6b'
@@ -387,8 +386,6 @@ class __FormatStringTestCase(unittest.TestCase):
         self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': '%', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
         testFormat='6s'
         self.assertEqual(self.formatString.__specparse__(testFormat),{'output':False,'align': False, 'alternate': False, 'comma': False, 'fill': False, 'precision': False, 'sign': False, 'type': 's', 'width': 6,'zeropadding': False},'__specparse__ Error: '+str(testFormat)+'|'+str(self.formatString.__specparse__(testFormat)))
-        testFormat='6q'
-        self.assertRaises(ValueError,self.formatString.__specparse__,(testFormat))
     def test___setformatstring__(self):
         self.formatString.__setformatstring__('{a.b:10.5f} {a.c:10.5f}{b.a:9.3f}                      {b.b:6f}')
         self.assertEqual(self.formatString.__formatstring__,'{a.b:10.5f} {a.c:10.5f}{b.a:9.3f}                      {b.b:6f}')
@@ -410,6 +407,10 @@ class __FormatStringTestCase(unittest.TestCase):
             x='abcdef'
         a=A()       
         self.assertEqual(self.formatString.format(121.355,84.23,11.2,11,a=a),' 121.35500   84.23000   11.200                      11.000000abcdef','format Error: '+str(self.formatString.format(121.355,84.23,11.2,11,a=a)))
+        self.formatString.__setformatstring__('{0:f}|{1:f}|{2:f}|ABC|{3:f}|{a.x:s}')    
+        self.assertEqual(self.formatString.format(121.355,84.23,11.2,11,a=a),'121.355000 84.230000 11.200000 ABC 11.000000 abcdef','format Error: '+str(self.formatString.format(121.355,84.23,11.2,11,a=a)))
+        self.formatString.__setformatstring__('XYZ|{0:f}|{1:f}|{2:f}|ABC|{3:f}|{a.x:s}')    
+        self.assertEqual(self.formatString.format(121.355,84.23,11.2,11,a=a),'XYZ 121.355000 84.230000 11.200000 ABC 11.000000 abcdef','format Error: '+str(self.formatString.format(121.355,84.23,11.2,11,a=a)))
     def test_read(self):
         self.formatString.__setformatstring__('{0:10.5f} {1:10.5f}{2:9.3f}                      {3:6f} {a.b:6b}')        
         self.assertEqual(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101'),{'0':121.355,'1':84.23,'2':11.2,'3':11.001,'a':{'b':5}},'format Error: '+str(self.formatString.read(' 121.35500   84.23000   11.200                      11.001000 000101')))
