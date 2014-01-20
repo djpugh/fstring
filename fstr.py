@@ -18,15 +18,15 @@ def formatstr(formatDict):
     if formatDict['type']:
         result.append(str(formatDict['type']))
     return ''.join(result)
-def uni2int(val,formatDict,*args):
+def uni2int(val,formatDict,*args,**kwargs):
     if type(val) not in [str,unicode]:
         return ('{0:'+formatstr(formatDict)+'}').format(val)
     return ord(val.strip())
-def perc2float(val,formatDict,*args):
+def perc2float(val,formatDict,*args,**kwargs):
     if type(val)!=str:
         return ('{0:'+formatstr(formatDict)+'}').format(val)
     return float(val.rstrip('%'))/100.0
-def floatparse(val,formatDict,*args):
+def floatparse(val,formatDict,*args,**kwargs):
     if type(val)!=str:
         return ('{0:'+formatstr(formatDict)+'}').format(val)
     sign=1
@@ -46,14 +46,14 @@ def floatparse(val,formatDict,*args):
         dec=int(formatDict['precision'])
         integer=int(len(val.replace('.','')))-dec
         return sign*(float('0'+val[:integer].strip(' '))+float('.'+val[-dec:]).strip(' ')+'0')
-def intparse(val,formatDict,*args):
+def intparse(val,formatDict,*args,**kwargs):
     if type(val)!=str:
         return ('{0:'+formatstr(formatDict)+'}').format(val)
     sign=1
     if formatDict['sign']=='-':
         sign=-1 
     return sign*int(val,*args)
-def strparse(val,formatDict,*args):
+def strparse(val,formatDict,*args,**kwargs):
     if type(val)!=str:
         return ('{0:'+formatstr(formatDict)+'}').format(val)
     return str(val)
@@ -93,8 +93,8 @@ class FormatString(object):
                 None:(float,[])}
     __freeformatdelimiter__='|'
     __fixed__=False
-    def __init__(self,formatstring,fixed=False):
-        self.__fixed__=fixed
+    def __init__(self,formatstring,fixedWidth=False):
+        self.__fixed__=fixedWidth
         self.__setformatstring__(formatstring)
     def __setformatstring__(self,formatString):
         self.__setattr__('__formatstring__',formatString)
@@ -194,7 +194,7 @@ class FormatString(object):
             formatDict=self.__specparse__(format_spec)
             formatType=formatDict['type']
             formatDict['output']=True
-            out=self._typeDict[formatType][0](attr,formatDict,*self._typeDict[formatType][1])
+            out=self._typeDict[formatType][0](attr,formatDict,fixedWidth=self.__fixed__,*self._typeDict[formatType][1])
             if self.__fixed__ and formatDict['width']:
                 out= out[:formatDict['width']]
                 if len(out)<formatDict['width']:
@@ -251,11 +251,9 @@ class FormatString(object):
                     parseString=inputString.split()[__stringpointer__]
                 else:
                     parseString=inputString[__stringpointer__:]
-                try:
+                if len(parseString.strip()) and parseString.strip() not in ['?']:
                     (attr,val)=self.__stringparse__(parseString,*result)
                     Results[attr]=val
-                except:
-                    pass
                 if self.__freeformatdelimiter__ in parseresults:
                     __stringpointer__+=1
                 elif result[1]['width']:
@@ -333,7 +331,7 @@ class FormatString(object):
             string=string.replace(',','')
             formatDict.pop('comma')
         formatType=formatDict.pop('type')
-        return (attribute,self._typeDict[formatType][0](string,formatDict,*self._typeDict[formatType][1]))
+        return (attribute,self._typeDict[formatType][0](string,formatDict,fixedWidth=self.__fixed__,*self._typeDict[formatType][1]))
 class __FormatStringTestCase(unittest.TestCase):
     """__FormatStringTestCase
     Subclass of unittest.TestCase
