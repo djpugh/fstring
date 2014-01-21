@@ -141,7 +141,10 @@ class FormatString(object):
             formatDict['width']=int(formatSpec.split('.')[0])
             formatDict['precision']='.'.join(formatSpec.split('.')[1:])
         elif len(formatSpec)>0:
-            formatDict['width']=int(''.join([v for v in formatSpec if v.isdigit()]))            
+            try:
+                formatDict['width']=int(''.join([v for v in formatSpec if v.isdigit()]))     
+            except:
+                pass       
         formatDict['output']=False
         return formatDict
     def __parse__(self):
