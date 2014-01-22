@@ -14,6 +14,7 @@ def formatstr(formatDict):
     if formatDict['width']:
         result.append(str(formatDict['width']))
     if formatDict['precision']:
+        result.append('.')
         result.append(str(formatDict['precision']))
     if formatDict['type']:
         result.append(str(formatDict['type']))
