@@ -94,6 +94,13 @@ class FormatString(object):
                 None:(float,[])}
     __freeformatdelimiter__='|'
     __fixed__=False
+    def __eq__(self,other):
+        try:
+            return self.__formatstring__==other.__formatstring__
+        except:
+            return False
+    def __ne__(self,other):
+        return not self==other
     def __init__(self,formatstring,fixedWidth=False):
         self.__fixed__=fixedWidth
         self.__setformatstring__(formatstring)
@@ -431,6 +438,12 @@ class __FormatStringTestCase(unittest.TestCase):
         self.assertEqual(self.formatString.read(' 12345 123.23'),{'picks':{'pt':12345.0,'st':123.23}},'format Error: '+str(self.formatString.read(' 12345 123.23')))
         self.formatString.__setformatstring__('XYZ|{0:f}|{1:f}|{2:f}|ABC|{3:f}|{a.x:s}')    
         self.assertEqual(self.formatString.read('XYZ 121.355000 84.230000 11.200000 ABC 11.000000 abcdef'),{'0':121.355,'1':84.23,'2':11.2,'3':11.0,'a':{'x':'abcdef'}},'format Error: '+str(self.formatString.read('XYZ 121.355000 84.230000 11.200000 ABC 11.000000 abcdef')))
+    def test___eq__(self):
+        self.assertTrue(self.formatString==FormatString(''))
+        self.formatString.__setformatstring__('{0:10.5f} {1:10.5f}{2:9.3f}                      {3:6f} {a.b:6b}')        
+        self.assertFalse(self.formatString==FormatString(''))
+        self.assertTrue(self.formatString==FormatString('{0:10.5f} {1:10.5f}{2:9.3f}                      {3:6f} {a.b:6b}'))
+        
     
     def test___fixed__(self):
         self.formatString.__fixed__=True
